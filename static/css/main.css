@@ -1,3 +1,4 @@
+
 .container-narrow {
   margin: 0 auto;
   max-width: 700px;
@@ -7,7 +8,15 @@
 }
 body {
   padding-top: 20px;
-  padding-bottom: 40px;
+  padding-bottom: 0px;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  box-sizing: border-box;
 }
 
 header h1 a, header h1 a:hover {
@@ -54,4 +63,15 @@ a:hover {
 }
 .icon-google-plus-sign {
   color: #D34836;
+}
+
+/* HoneyProxy App Frame */
+.appframe {
+  border-width: 0px;
+  width: 100%;
+  height: 100%;
+}
+body, html {
+  margin: 0;
+  padding: 0;
 }

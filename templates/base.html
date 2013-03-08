@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>ThugMe</title>
+  <title>HoneyProxy Client</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="ThugMe">
-  <meta name="author" content="Honeynet Project">
+  <meta name="description" content="HoneyProxy">
+  <meta name="author" content="Maximilian Hils">
   
   <link rel="stylesheet" href="/static/css/bootstrap.min.css">
   <style>
@@ -28,14 +28,15 @@
       <li class="active"><a href="/"><i class="icon-home"></i> Home</a></li>
       <li><a href="https://github.com/honeynet/thugme"><i class="icon-github"></i> Repository</a></li>
     </ul>
-    <h1><a href="/">ThugMe</a></h1>
+    <h1><a href="/">HoneyProxy Client</a></h1>
     <hr>
   </header>
   <div id="main">
   </div>
   <footer>
     <hr>
-    <p>&copy; <i class="icon-github"></i><a href="https://github.com/honeynet"> Honeynet Project</a> (2013)</p>
+    <p>&copy; <a href="http://maximilianhils.com/">Maximilian Hils</a> and the <i class="icon-github"></i><a href="https://github.com/honeynet"> Honeynet Project</a> (2013) | 
+    <a target="_blank" href="http://www.google.com/recaptcha/mailhide/d?k=01FjpcpQBOl2iXKqYENwYocA==&amp;c=9jWOgKNVsmATMlsZ4Lx37Pjla6aijigtg6zF1owZfZk=" class="button">Report abuse</a></p>
   </footer>
 </div>
 
@@ -43,8 +44,8 @@
   <div>
     <form class="analyze pull-right" data-attach="analyzeForm">
       <div class="input-append">
-        <input name="url" type="text" class="input-xlarge" placeholder="http://example.com/evil" data-attach="analyzeUrl">
-        <button type="submit" class="btn btn-primary"><i class="icon-screenshot" data-attach="analyzeButtonIcon"></i> Analyze</button>
+        <input name="url" value="<%- options.url %>" type="text" class="input-xlarge" placeholder="http://example.com/evil" data-attach="analyzeUrl">
+        <button type="submit" class="btn btn-primary" tabindex=0 ><i class="icon-screenshot" data-attach="analyzeButtonIcon"></i> Search & Analyze</button>
       </div>
     </form>
     <h4>Recent Analysis</h4>
@@ -57,25 +58,39 @@
         </tr>
       </thead>
       <tbody>
-        <tr>
-          <td title="http://example.com?fjyzaa=1l:1k:1k:1m:2w&gia=37:33:3g:2v&hnmv=1j:33:32:1l:1g:1i:1o:1n:1o:1i&negwrj=dpnf"><span class="muted">http://</span>example.com?fjyzaa=1l:1k:1k:1m:2w&gia=37:33:3g:2v&hnmv=1j:33:32:1l:1g:1i:1o:1n:1o:1i&negwrj=dpnf</td>
-          <td><span class="label">PDF</span> <span class="label">SWF</span></td>
-          <td>2013-03-04 03:25:48 PST</td>
-        </tr>
-        <tr>
-          <td><span class="muted">http://</span>foo.com/bar</td>
-          <td><span class="label label-important">JAR</span> <span class="label">SWF</span></td>
-          <td>2013-03-04 00:23:50 PST</td>
-        </tr>
-        <tr>
-          <td title="O RLY?">Bypass the Captchacheck with "foo" as Captcha value</td>
-          <td></td>
-          <td>2013-03-03 23:00:45 PST</td>
-        </tr>
+        <% 
+        if(options.rows && options.rows.length > 0) 
+          options.rows.forEach((function(data){ print(this.row(data)) }).bind(this)); 
+        else
+          print(this.noResults(this));
+        %>
       </tbody>
     </table>
   </div>
-</script> 
+</script>
+<script id="maintpl-noresults" type="text/template">
+  <tr>
+    <td class="info" colspan="3">
+      No results <% var url = (typeof $analyzeUrl === "undefined") ? $analyzeUrl.val().trim() : ""; if(url != "") { %>for <i><%- $analyzeUrl.val() %></i> <% } %>so far.
+    </td>
+  </tr>
+</script>
+<script id="maintpl-row" type="text/template">
+  <tr>
+    <td title="<%-url %>"><%- url %></td>
+    <td>
+      <a href="/analysis/<%- id %>">
+        <% 
+          if(status === "ACTIVE") print('<i>running...</i>');
+          if(status === "FINISHED") print("analysis complete"/*parseInt(request_count) + " requests"*/);
+          if(status === "QUEUE") print('queued');
+        %>
+      </a>
+    </td>
+    <td><%- moment(submit_time).fromNow() %></td>
+  </tr>
+</script>
+
 <script id="submittpl" type="text/template">
   <form class="submit">
   	<h4>Analyze!</h4>
@@ -87,7 +102,7 @@
       <div class="clearfix"></div <!-- TODO: Neccessary? -->
 	</div>
     
-    <input name="url" value="<%- options.url %>" type="hidden"/>
+    <input data-attach="urlInput" name="url" value="" type="hidden"/>
     <div class="row-fluid">
       <div class="span8">
     	<div data-attach="captcha"><i>Captcha Loading...</i></div>
@@ -140,14 +155,11 @@
 
 <script src="/static/js/vendor/bootstrap.min.js"></script>
 <script src="/static/js/vendor/buzz.js"></script>
-<script src="/static/js/vendor/lodash.custom.js"></script>  
+<script src="/static/js/vendor/lodash.custom.js"></script> 
+<script src="/static/js/vendor/moment.js"></script> 
 <script src="/static/js/main.js"></script>
-<script type="text/javascript">
-  $(function(){
-    new thugme.MainView("#main");
-  });
-</script>
-{% block content %}{% endblock %}
+
+{% block instruction %}{% endblock %}
   
 </body>
 </html>

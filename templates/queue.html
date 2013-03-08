@@ -2,9 +2,7 @@
 {% block instruction %}
 <script type="text/javascript">
   $(function(){
-    new thugme.MainView("#main",{
-      rows: {{ analyses }}
-     });
+    new thugme.QueueHandler("#main", {}, {{ data }});
   });
 </script>
 {% endblock %}

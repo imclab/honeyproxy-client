@@ -33,6 +33,7 @@ page notifies user as soon as results are present
       this.options = $.extend({}, this.defaults, options);
       this.render();
     },
+    postRender: function(){},
     render: function(){
       if(!this._template){
         console.debug("Rendering template",this);
@@ -44,54 +45,64 @@ page notifies user as soon as results are present
         this.$element.replaceWith($e)
       this.$element = $e;
       this._attachNodes();
+      this.postRender();
     },
     _attachNodes: function(){
-      
-      var addAttribute = (function(name,value){
-        if(name in this)
-          throw "Cannot attach to attribute: "+name+" already exists.";
-        this[name] = value;
-      }).bind(this);
-      
+      var self = this;
       this.$element.find("[data-attach]").each(function(){
         var attr = $(this).data("attach");
-        addAttribute(attr,this);
-        addAttribute("$"+attr,$(this));
+        self[    attr] =   this ;
+        self["$"+attr] = $(this);
       });
     }
   }
   
   var MainView = exports.MainView = function(node,options){
+    this.noResults = _.template($("#maintpl-noresults").html());
+    this.row = _.template($("#maintpl-row").html());
+    
     this.initialize(arguments);
+    
+    this.options.startRows = this.options.rows;
     
     this.$parentNode.append(this.$element);
     
-    this.$analyzeForm.submit(this.search.bind(this));
+    this.submitHandler = new SubmitHandler(this.$parentNode);
+    
   };
   $.extend(MainView.prototype,TemplateMixin,{
     template: "#maintpl",
     defaults: {},
+    postRender: function(){
+      this.$analyzeForm.submit(this.search.bind(this));
+      this.$analyzeUrl.focus();
+      if(this.submitHandler)
+        this.submitHandler.setUrl(this.options.url);
+    },
     search: function(){
-      //Search for existing results
-      this.$analyzeButtonIcon.addClass("icon-spin");
-      $.post("/api/search", $(this).serialize(), "json").then((function(data){
-        this.$analyzeButtonIcon.removeClass("icon-spin");
-      
-        var hasResults = (data.results.length > 0);
-      
-        //hide/show analysis table if we have results
-        hasResults ? this.$analysisTable.show("fast") : this.$analysisTable.hide("fast");
-        if(hasResults) {
-          console.log("FIXME: display results");
-          this.$analysisTable.html($("<pre>").text(JSON.stringify(data.results, null, "  ")));
+      this.options.url = this.$analyzeUrl.val().trim();
+
+      this.$analyzeButtonIcon.removeClass("icon-spin");
+
+      if(this.options.url=== ""){
+        this.options.rows = this.options.startRows;
+        this.render();
+      } else {
+        //Search for existing results
+        this.$analyzeButtonIcon.addClass("icon-spin");
+        if(this.searchrequest)
+          this.searchrequest.abort();
+        this.searchrequest = $.post("/api/search", this.$analyzeForm.serialize(), "json").always((function(data){
+          this.$analyzeButtonIcon.removeClass("icon-spin");
         
-        } else {
-          //analysisTable.html("<div class="alert alert-info">...</div>");
-        }
-        new SubmitHandler(this.$parentNode,{url:this.$analyzeUrl.val()});
-      }).bind(this));
+          this.options.rows = (data && data.results) ? data.results : [];
+          this.render();
+          
+        }).bind(this));
+      }
+
       return false;
-    }
+    },
   });
   
   var SubmitHandler = function(node,options){
@@ -101,9 +112,7 @@ page notifies user as soon as results are present
     
     this.$element.hide();
     this.$parentNode.append(this.$element);
-    this.$element.fadeIn();
 
-    this.initCaptcha();
   };
   $.extend(SubmitHandler.prototype, TemplateMixin, {
     template: "#submittpl",
@@ -122,20 +131,31 @@ page notifies user as soon as results are present
       if(!window.lazyRecaptchaInit){
         $.getScript("//www.google.com/recaptcha/api/js/recaptcha_ajax.js").then(showRecaptcha);
         window.lazyRecaptchaInit = true;
+      }
+    },
+    setUrl: function(url){
+      this.$urlInput.val(url);
+      if(/(https?:\/\/)?[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+(\/.*)?$/.test(url)) {
+        this.$element.fadeIn("fast");
+        this.initCaptcha();
+        if(window.Recaptcha)
+          window.Recaptcha.focus_response_field();
+        return true;
       } else {
-        showRecaptcha();
+        this.$element.fadeOut("fast");
+        return false;
       }
     },
     submit: function(){
       $.post("/api/analyze", this.$element.serialize(), "json").then((function(data){
-        if(!data.success && this.$element.serialize().indexOf("foo") === -1) { //FIXME Debug
+        if(!data.success) {
           this.$captchaError.slideDown("fast");
           Recaptcha.reload();
         } else {
           this.$parentNode.children().slideUp().promise().done(function(){
             $(this).remove();
           });
-          new QueueHandler(this.$parentNode, {}, data.success ? data : {id:"abc",queue:6}); //FIXME Debug
+          new QueueHandler(this.$parentNode, {}, data); //FIXME Debug
         }
       }).bind(this));
       return false;
@@ -202,14 +222,8 @@ page notifies user as soon as results are present
       $.get("/api/analysis/"+this.id, this.handleStatus.bind(this),"json");
     },
     handleStatus: function(data){
-      if(data.complete) {
-        window.clearInterval(this.pollStatusInterval);
-        this.notify();
-        this.$parentNode.children().slideUp().promise().done(function(){
-          $(this).remove();
-        });
-        console.log("FIXME: Show results");
-        //FIXME: show results
+      if(data.complete || data.queue < 0) {
+        location.reload();
       } else {
         this.setQueueNumber(data.queue);
       }
