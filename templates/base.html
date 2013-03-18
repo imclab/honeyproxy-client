@@ -26,11 +26,15 @@
   <header>
     <ul class="nav nav-pills pull-right">
       <li class="active"><a href="/"><i class="icon-home"></i> Home</a></li>
-      <li><a href="https://github.com/honeynet/thugme"><i class="icon-github"></i> Repository</a></li>
+      <li><a href="https://github.com/mhils/honeyproxy-client"><i class="icon-github"></i> Repository</a></li>
     </ul>
     <h1><a href="/">HoneyProxy Client</a></h1>
     <hr>
   </header>
+  <div class="alert">
+  <b>Warning!</b> This is a pre-&alpha; prototype intended for testing. It will break :)
+  <a href="#" class="close" data-dismiss="alert">&times;</a>
+  </div>
   <div id="main">
   </div>
   <footer>
@@ -71,7 +75,7 @@
 <script id="maintpl-noresults" type="text/template">
   <tr>
     <td class="info" colspan="3">
-      No results <% var url = (typeof $analyzeUrl === "undefined") ? $analyzeUrl.val().trim() : ""; if(url != "") { %>for <i><%- $analyzeUrl.val() %></i> <% } %>so far.
+      No results <% var url = (typeof $analyzeUrl !== "undefined") ? $analyzeUrl.val().trim() : ""; if(url != "") { %>for <i><%- $analyzeUrl.val() %></i> <% } %>so far.
     </td>
   </tr>
 </script>
@@ -142,7 +146,7 @@
 <script id="sharetpl" type="text/template">
   <div class="share">
     <label><i class="icon-share-alt"></i> <%- options.text %>
-      <a href="https://twitter.com/share?hashtags=thug&url=<%- options.url %>" class="share-open" target="_blank"><i class="icon-twitter"></i></a>
+      <a href="https://twitter.com/share?hashtags=honeyproxy&url=<%- options.url %>" class="share-open" target="_blank"><i class="icon-twitter"></i></a>
       <a href="https://plus.google.com/share?url=<%- options.url %>" class="share-open" target="_blank"><i class="icon-google-plus-sign"></i></a>
       <br>
       <input data-attach="urlCopyInput" class="input-xlarge" readonly="readonly" type="text" value="<%- options.url %>" data-toggle="tooltip" data-placement="right" data-trigger="focus" data-original-title="Press CTRL+C to copy" />

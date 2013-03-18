@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, Column, DateTime, String, Boolean, Integer
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 from recaptcha.client import captcha
+from subprocess import PIPE, STDOUT
 
 with open("config.json","r") as f:
     config = json.loads(f.read())
@@ -71,9 +72,8 @@ def show_analysis(analysis_id=None):
         return template.render(data=json.dumps(analysis_api(analysis_id)))
     else:
         instance = instanceManager.getInstance(analysis)
-        time.sleep(2)
         template = template_env.get_template('appframe.html')
-        return template.render(url="http://localhost:"+str(instance["guiport"])+"/app/")        
+        return template.render(url="http://"+request.urlparts.netloc.split(":")[0]+":"+str(instance["guiport"])+"/app/")        
 
 @app.post('/api/search')
 def search():
@@ -107,12 +107,19 @@ def analyze():
         return {"success": False, "msg": "invalid captcha"}
     else:
         url = request.forms.get("url")
-        if not re.match("^(https?://)?[a-zA-Z0-9_\\-\\.]+\\.[a-zA-Z0-9]+(/.*)?$",url):
+        if not re.match("^(https?://)?[a-zA-Z0-9_\\-\\.]+\\.[a-zA-Z0-9]+(:\d+)?(/.*)?$",url):
             return {"success": False, "msg": "invalid url"}
         analysis = Analysis(url=url)
         session.add(analysis)
         session.commit()
         return {"success": True, "queue": analysis.getQueuePosition(), "id": analysis.id} #return some id, too.
+
+# Notice: The code below is a proof of concept.
+# It is incredibly hacky and badly designed. Spawning N instances of HoneyProxy is downright silly.
+# So, why did I commit this crime?
+# The HoneyProxy dump format will get a complete overhaul very soon.
+# Anything I implemented here will get obsolete with these changes,
+# so this code just serves us as a bad PoC. Not as a base to build on.
 
 class HoneyProxyInstanceManager():
     def __init__(self):
@@ -125,35 +132,59 @@ class HoneyProxyInstanceManager():
     def spawnListener(self, analysis):
         apiport = self.ports.pop()
         guiport = self.ports.pop()
+
+        print "Spawn listener instance(%d, %d)..." % (apiport, guiport)
+        
         p = subprocess.Popen(config["HoneyProxy"] + [
             "-w",os.path.join(config["dumpdir"],analysis.id),
             "-p","8100",
-            # "-T", FIXME DEBUG
+            "-T",
             "-Z","5m",
             "--api-auth", "NO_AUTH",
             "--apiport", str(apiport),
             "--guiport", str(guiport),
             "--no-gui",
-            "--readonly"] )
+            "--readonly"],
+            stdout = subprocess.PIPE,
+            stderr = subprocess.STDOUT)
+        out = p.stdout.readline()
+        if out != "HoneyProxy has been started!\n":
+            raise RuntimeError("Couldn't start HoneyProxy: %s" % out)
         self.active[analysis.id] = { "handle": p, "apiport": apiport, "guiport": guiport }
         return self.active[analysis.id]
     def spawnResultInstance(self, analysis, apiport=None, guiport=None):
-        if not apiport:
+        if apiport:
+            self.ports.remove(apiport)
+        else:
             apiport = self.ports.pop()
-        if not guiport:
+
+        if guiport:
+            self.ports.remove(guiport)
+        else:
             guiport = self.ports.pop()
-        p = subprocess.Popen(config["HoneyProxy"] + [
-            "-r",os.path.join(config["dumpdir"],analysis.id),
+
+        print "Spawn result instance(%d, %d)..." % (apiport, guiport)
+
+        args = config["HoneyProxy"] + [
+            "-r", os.path.join(config["dumpdir"],analysis.id),
             "-n",
             "--api-auth", "NO_AUTH",
             "--apiport", str(apiport),
             "--guiport", str(guiport),
             "--no-gui",
-            "--readonly"] )
+            "--readonly"]
+        print args
+        p = subprocess.Popen(args,
+            stdout = subprocess.PIPE,
+            stderr = subprocess.STDOUT)
+        if p.stdout.readline() != "HoneyProxy has been started!\n":
+            raise RuntimeError("Couldn't start HoneyProxy")
+        else:
+            print "Result instance spawned."
         self.active[analysis.id] = { "handle": p,
                                                 "starttime": time.time(),
                                                 "apiport": apiport,
-                                                "guiport": guiport }
+                                                "guiport": guiport }        
         return self.active[analysis.id]
     def terminateProcess(self, analysis):
         self.active[analysis.id]["handle"].terminate()
@@ -174,9 +205,6 @@ class RequestHandler(threading.Thread):
             if analysis == None:
                 time.sleep(1)
             else:
-            #    pass
-            #if False:
-
                 #Launch HoneyProxy
                 instanceManager.spawnListener(analysis)
 
@@ -194,6 +222,7 @@ class RequestHandler(threading.Thread):
                                 + config["VMStart"] + [analysis.url])
                 subprocess.call(params)
 
+                print "Site opened."
                 time.sleep(config["analysis_duration"])
 
                 #Shut down VM
