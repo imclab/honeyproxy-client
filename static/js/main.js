@@ -134,8 +134,8 @@ page notifies user as soon as results are present
       }
     },
     setUrl: function(url){
-      this.$urlInput.val(url);
-      if(/(https?:\/\/)?[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+(\/.*)?$/.test(url)) {
+      this.$urlInput.val(url.trim());
+      if(/^(https?:\/\/)?[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+(:\d+)?(\/.*)?$/.test(url)) {
         this.$element.fadeIn("fast");
         this.initCaptcha();
         if(window.Recaptcha)
