@@ -6,6 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="HoneyProxy">
   <meta name="author" content="Maximilian Hils">
+  
+    <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+  <style>
+    body {
+      padding-top: 60px;
+      padding-bottom: 40px;
+    }
+  </style>
+  <link href="/static/css/font-awesome.min.css" rel="stylesheet">
+  <link href="/static/css/main.css" rel="stylesheet">	
+
+  <script src="/static/js/vendor/modernizr-2.6.2.min.js"></script>	
+  
   <style type="text/css">
     html, body {
       width: 100%;
@@ -18,11 +31,42 @@
       height: 100%;
       border-width: 0px;
     }
+	#share {
+		height: 54px;
+	}
   </style>
 </head>
 <body>
 <!-- TODO: Add Share stuff as overlay -->
-<div style="position: fixed; right: 0;padding: 5px; background-color: white;">Share me</div>
+<div id="share" style="position: fixed; right: 0;padding: 5px; background-color: white;"></div>
 <iframe class="appframe" frameBorder="0" seamless src="{{ url }}"></iframe>
+
+<script id="sharetpl" type="text/template">
+  <div class="share">
+    <label><i class="icon-share-alt"></i> <%- options.text %>
+      <a href="https://twitter.com/share?hashtags=honeyproxy&url=<%- options.url %>" class="share-open" target="_blank"><i class="icon-twitter"></i></a>
+      <a href="https://plus.google.com/share?url=<%- options.url %>" class="share-open" target="_blank"><i class="icon-google-plus-sign"></i></a>
+      <br>
+      <input data-attach="urlCopyInput" class="input-xlarge" readonly="readonly" type="text" value="<%- options.url %>" data-toggle="tooltip" data-placement="right" data-trigger="focus" data-original-title="Press CTRL+C to copy" />
+    </label>
+  </div>
+</script>
+  
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+<script>window.jQuery || document.write('<script src="static/js/vendor/jquery-1.9.1.min.js"><\/script>')</script>
+
+<script src="/static/js/vendor/bootstrap.min.js"></script>
+<script src="/static/js/vendor/buzz.js"></script>
+<script src="/static/js/vendor/lodash.custom.js"></script> 
+<script src="/static/js/vendor/moment.js"></script> 
+<script src="/static/js/main.js"></script>
+
+<script>
+    new thugme.ShareWidget("#share",{
+      text: "Share analysis:",
+	  url: location.href
+     });
+</script>
+
 </body>
 </html>
