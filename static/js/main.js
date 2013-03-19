@@ -9,7 +9,10 @@ page notifies user as soon as results are present
   
 */
 (function($){
-  
+  "use strict";
+  /*jshint browser: true, devel: true, debug: true, evil: true, forin: false, undef: true, bitwise: true, eqnull: true, noarg: true, noempty: true, eqeqeq: true, boss: true, loopfunc: true, laxbreak: true, strict: true, curly: false, nonew: false, jquery: true */
+  /* global _, buzz, Recaptcha */
+
   var exports = window;
   
   var notifySound = new buzz.sound("/static/sounds/airhorn", {
@@ -36,12 +39,12 @@ page notifies user as soon as results are present
     render: function(){
       if(!this._template){
         console.debug("Rendering template",this);
-        var templatesrc = this.template.indexOf("#") == 0 ? $(this.template).html() : this.template;
+        var templatesrc = this.template.indexOf("#") === 0 ? $(this.template).html() : this.template;
         Object.getPrototypeOf(this)._template = _.template($.trim(templatesrc));
       }
       var $e = $($.parseHTML(this._template(this))[0]);
       if(this.$element)
-        this.$element.replaceWith($e)
+        this.$element.replaceWith($e);
       this.$element = $e;
       this._attachNodes();
       this.postRender();
@@ -54,7 +57,7 @@ page notifies user as soon as results are present
         self["$"+attr] = $(this);
       });
     }
-  }
+  };
   
   var MainView = exports.MainView = function(node,options){
     this.noResults = _.template($("#maintpl-noresults").html());
@@ -101,7 +104,7 @@ page notifies user as soon as results are present
       }
 
       return false;
-    },
+    }
   });
   
   //We don't use the usual rerendering for the Submithandler as it doesn't work with Recaptcha.
@@ -161,7 +164,7 @@ page notifies user as soon as results are present
             this.$parentNode.children().slideUp().promise().done(function(){
               $(this).remove();
             });
-            new QueueHandler(this.$parentNode, {}, data); //FIXME Debug
+            new QueueHandler(this.$parentNode, {}, data);
           }
         }).bind(this));
       }
@@ -194,7 +197,7 @@ page notifies user as soon as results are present
     this.initialize(arguments);
     this.id = firstData ? firstData.id || options.id : options.id;
     
-    this.initGui(this.$parentNode);
+    this.initGui();
     
     
     if(firstData)
@@ -207,8 +210,8 @@ page notifies user as soon as results are present
   $.extend(QueueHandler.prototype, TemplateMixin, {
     template: "#queuetpl",
     defaults: { showSuccessMessage: false },
-    initGui: function(node){
-  	  var url = "/analysis/"+this.id;
+    initGui: function(){
+      var url = "/analysis/"+this.id;
       //hide existing content
     
       new ShareWidget(this.$shareWidget,
@@ -230,6 +233,7 @@ page notifies user as soon as results are present
     },
     handleStatus: function(data){
       if(data.complete || data.queue < 0) {
+        window.clearInterval(this.pollStatusInterval);
         this.notify().done(function(){
           location.reload();
         });
@@ -248,7 +252,7 @@ page notifies user as soon as results are present
       else {
         notifySound.stop();
         notifySound.play();
-        notifySound.bindOnce("ended", function(e) {
+        notifySound.bindOnce("ended", function() {
           def.resolve(true);
         });
       }
@@ -259,7 +263,6 @@ page notifies user as soon as results are present
       // http://www.html5rocks.com/en/tutorials/notifications/quick/
       if(!this.$notifyButton.hasClass("active")) { //activated
         notifySound.play();
-      } else { //deactivated
       }
     }
   });
