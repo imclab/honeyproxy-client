@@ -1,0 +1,10 @@
+<script id="sharetpl" type="text/template">
+  <div class="share">
+    <label><i class="icon-share-alt"></i> <%- options.text %>
+      <a href="https://twitter.com/share?hashtags=honeyproxy&url=<%- options.url %>" class="share-open" target="_blank"><i class="icon-twitter"></i></a>
+      <a href="https://plus.google.com/share?url=<%- options.url %>" class="share-open" target="_blank"><i class="icon-google-plus-sign"></i></a>
+      <br>
+      <input data-attach="urlCopyInput" class="input-xlarge" readonly="readonly" type="text" value="<%- options.url %>" data-toggle="tooltip" data-placement="right" data-trigger="focus" data-original-title="Press CTRL+C to copy" />
+    </label>
+  </div>
+</script>

@@ -1,10 +1,17 @@
-{% extends "base.html" %}
+{% extends "layouted.html" %}
+
 {% block instruction %}
+
+{% include 'tpl/main.html' %}
+{% include 'tpl/submit.html' %}
+{% include 'tpl/queue.html' %}
+
 <script type="text/javascript">
   $(function(){
-    new thugme.MainView("#main",{
+    new MainView("#main",{
       rows: {{ analyses }}
      });
   });
 </script>
+
 {% endblock %}

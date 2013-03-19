@@ -8,13 +8,8 @@
   <meta name="author" content="Maximilian Hils">
   
   <link rel="stylesheet" href="/static/css/bootstrap.min.css">
-  <style>
-    body {
-      padding-top: 60px;
-      padding-bottom: 40px;
-    }
-  </style>
   <link href="/static/css/font-awesome.min.css" rel="stylesheet">
+  <link href='http://fonts.googleapis.com/css?family=Cantora+One' rel='stylesheet'>
   <link href="/static/css/main.css" rel="stylesheet">	
 
   <script src="/static/js/vendor/modernizr-2.6.2.min.js"></script>	
@@ -22,140 +17,10 @@
 
 <body>
 
-<div class=container-narrow>
-  <header>
-    <ul class="nav nav-pills pull-right">
-      <li class="active"><a href="/"><i class="icon-home"></i> Home</a></li>
-      <li><a href="https://github.com/mhils/honeyproxy-client"><i class="icon-github"></i> Repository</a></li>
-    </ul>
-    <h1><a href="/">HoneyProxy Client</a></h1>
-    <hr>
-  </header>
-  <div class="alert">
-  <b>Warning!</b> This is a pre-&alpha; prototype intended for testing. It will break :)
-  <a href="#" class="close" data-dismiss="alert">&times;</a>
-  </div>
-  <div id="main">
-  </div>
-  <footer>
-    <hr>
-    <p>&copy; <a href="http://maximilianhils.com/">Maximilian Hils</a> and the <i class="icon-github"></i><a href="https://github.com/honeynet"> Honeynet Project</a> (2013) | 
-    <a target="_blank" href="http://www.google.com/recaptcha/mailhide/d?k=01FjpcpQBOl2iXKqYENwYocA==&amp;c=9jWOgKNVsmATMlsZ4Lx37Pjla6aijigtg6zF1owZfZk=" class="button">Report abuse</a></p>
-  </footer>
-</div>
-
-<script id="maintpl" type="text/template">
-  <div>
-    <form class="analyze pull-right" data-attach="analyzeForm">
-      <div class="input-append">
-        <input name="url" value="<%- options.url %>" type="text" class="input-xlarge" placeholder="http://example.com/evil" data-attach="analyzeUrl">
-        <button type="submit" class="btn btn-primary" tabindex=0 ><i class="icon-screenshot" data-attach="analyzeButtonIcon"></i> Search & Analyze</button>
-      </div>
-    </form>
-    <h4>Recent Analysis</h4>
-    <table class="table table-striped table-condensed table-analysis" data-attach="analysisTable">
-      <thead>
-        <tr>
-          <th style="width:50%">URL</th>
-          <th style="width:25%">Results</th>
-          <th style="width:25%">Time</th>
-        </tr>
-      </thead>
-      <tbody>
-        <% 
-        if(options.rows && options.rows.length > 0) 
-          options.rows.forEach((function(data){ print(this.row(data)) }).bind(this)); 
-        else
-          print(this.noResults(this));
-        %>
-      </tbody>
-    </table>
-  </div>
-</script>
-<script id="maintpl-noresults" type="text/template">
-  <tr>
-    <td class="info" colspan="3">
-      No results <% var url = (typeof $analyzeUrl !== "undefined") ? $analyzeUrl.val().trim() : ""; if(url != "") { %>for <i><%- $analyzeUrl.val() %></i> <% } %>so far.
-    </td>
-  </tr>
-</script>
-<script id="maintpl-row" type="text/template">
-  <tr>
-    <td title="<%-url %>"><%- url %></td>
-    <td>
-      <a href="/analysis/<%- id %>">
-        <% 
-          if(status === "ACTIVE") print('<i>running...</i>');
-          if(status === "FINISHED") print("analysis complete"/*parseInt(request_count) + " requests"*/);
-          if(status === "QUEUE") print('queued');
-        %>
-      </a>
-    </td>
-    <td><%- moment(submit_time).fromNow() %></td>
-  </tr>
-</script>
-
-<script id="submittpl" type="text/template">
-  <form class="submit">
-  	<h4>Analyze!</h4>
-    
-    <div data-attach="captchaError" class="alert alert-error text-center hide">
-      <i class="icon-legal icon-2x pull-left"></i>
-      <span style="line-height: 2em">Humans FTW: <b>Incorrect Captcha</b>!</span>
-      <a href="#" class="close" data-dismiss="alert">&times;</a>
-      <div class="clearfix"></div <!-- TODO: Neccessary? -->
-	</div>
-    
-    <input data-attach="urlInput" name="url" value="" type="hidden"/>
-    <div class="row-fluid">
-      <div class="span8">
-    	<div data-attach="captcha"><i>Captcha Loading...</i></div>
-      </div>
-      <div class="span4">
-        <button type="submit" class="btn btn-success btn-large"><i class="icon-hand-right"></i> Submit</button>
-      </div>
-    </div>
-    <hr>
-  </form>
-</script>
-
-<script id="queuetpl" type="text/template">
-  <div class="queue">
-    <% if (options.showSuccessMessage) { %>
-    <div class="alert alert-success hide">
-      <i class="icon-trophy icon-2x pull-left"></i>
-      <span style="line-height: 2em"><b>Great!</b> Your request is in the queue and will be analyzed soon!</span>
-      <a href="#" class="close" data-dismiss="alert">&times;</a>
-    </div>
-    <% } %>
-    <div class="queue media">
-      <a class="pull-left" href="#">
-        <i class="icon-tasks" style="font-size: 42px"></i>
-      </a>
-      <div class="media-body">
-        <h4 class="media-heading">Your request is currently in the queue at position <b data-attach="queuePosition">#…</b>.</h4>
-        Go and grab some coffee, this page refreshes automatically.
-      </div>
-    </div>
-    <div data-attach="shareWidget"></div>
-    <button data-attach="notifyButton" data-toggle="button" type="submit" class="notify btn btn-primary btn-block"><i class="icon-bullhorn"></i> Notify me!</button>
-    <div class=clearfix></div>
-  </div>
-</script>
-  
-<script id="sharetpl" type="text/template">
-  <div class="share">
-    <label><i class="icon-share-alt"></i> <%- options.text %>
-      <a href="https://twitter.com/share?hashtags=honeyproxy&url=<%- options.url %>" class="share-open" target="_blank"><i class="icon-twitter"></i></a>
-      <a href="https://plus.google.com/share?url=<%- options.url %>" class="share-open" target="_blank"><i class="icon-google-plus-sign"></i></a>
-      <br>
-      <input data-attach="urlCopyInput" class="input-xlarge" readonly="readonly" type="text" value="<%- options.url %>" data-toggle="tooltip" data-placement="right" data-trigger="focus" data-original-title="Press CTRL+C to copy" />
-    </label>
-  </div>
-</script>
+{% block content %}{% endblock %}
   
 <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
-<script>window.jQuery || document.write('<script src="static/js/vendor/jquery-1.9.1.min.js"><\/script>')</script>
+<script>window.jQuery || document.write('<script src="/static/js/vendor/jquery-1.9.1.min.js"><\/script>')</script>
 
 <script src="/static/js/vendor/bootstrap.min.js"></script>
 <script src="/static/js/vendor/buzz.js"></script>

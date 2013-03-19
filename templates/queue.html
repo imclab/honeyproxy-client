@@ -1,8 +1,11 @@
-{% extends "base.html" %}
+{% extends "layouted.html" %}
 {% block instruction %}
+
+{% include 'tpl/queue.html' %}
+
 <script type="text/javascript">
   $(function(){
-    new thugme.QueueHandler("#main", {}, {{ data }});
+    new QueueHandler("#main", {}, {{ data }});
   });
 </script>
 {% endblock %}

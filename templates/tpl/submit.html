@@ -1,0 +1,22 @@
+<script id="submittpl" type="text/template">
+  <form class="submit">
+  	<h4 data-attach="title">Analyze!</h4>
+    
+    <div data-attach="captchaError" class="alert alert-error text-center hide">
+      <i class="icon-legal icon-2x pull-left"></i>
+      <span style="line-height: 2em">Humans FTW: <b>Incorrect Captcha</b>!</span>
+      <a href="#" class="close" data-dismiss="alert">&times;</a>
+	</div>
+    
+    <input data-attach="urlInput" name="url" value="" type="hidden"/>
+    <div class="row-fluid">
+      <div class="span8">
+    	<div data-attach="captcha"><i>Captcha Loading...</i></div>
+      </div>
+      <div class="span4">
+        <button type="submit" class="btn btn-success btn-large"><i class="icon-hand-right"></i> Submit</button>
+      </div>
+    </div>
+    <hr>
+  </form>
+</script>

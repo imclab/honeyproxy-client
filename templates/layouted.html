@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class=container-narrow>
+  <header>
+    <ul class="nav nav-pills pull-right">
+      <li class="active"><a href="/"><i class="icon-home"></i> Home</a></li>
+      <li><a href="https://github.com/mhils/honeyproxy-client"><i class="icon-github"></i> Repository</a></li>
+    </ul>
+    <h1><a href="/"><img src="/static/img/logo.png" width="64" height="64"> HoneyProxy <span style="color: hsl(36, 88%, 56%);">Client</span></a></h1>
+    <hr>
+  </header>
+  <div class="alert">
+  <b>Warning!</b> This is a pre-&alpha; prototype intended for testing. It will break :)
+  <a href="#" class="close" data-dismiss="alert">&times;</a>
+  </div>
+  <div id="main">
+  </div>
+  <footer>
+    <hr>
+    <p>&copy; <a href="http://maximilianhils.com/">Maximilian Hils</a> and the <i class="icon-github"></i><a href="https://github.com/honeynet"> Honeynet Project</a> (2013) | 
+    <a target="_blank" href="http://www.google.com/recaptcha/mailhide/d?k=01FjpcpQBOl2iXKqYENwYocA==&amp;c=9jWOgKNVsmATMlsZ4Lx37Pjla6aijigtg6zF1owZfZk=" class="button">Report abuse</a></p>
+  </footer>
+</div>
+{% endblock %}

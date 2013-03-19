@@ -10,8 +10,7 @@ page notifies user as soon as results are present
 */
 (function($){
   
-  var exports = {};
-  window.thugme = exports;
+  var exports = window;
   
   var notifySound = new buzz.sound("/static/sounds/airhorn", {
     formats: [ "ogg", "mp3" ],
@@ -72,12 +71,12 @@ page notifies user as soon as results are present
   };
   $.extend(MainView.prototype,TemplateMixin,{
     template: "#maintpl",
-    defaults: {},
+    defaults: {rows: []},
     postRender: function(){
       this.$analyzeForm.submit(this.search.bind(this));
       this.$analyzeUrl.focus();
       if(this.submitHandler)
-        this.submitHandler.setUrl(this.options.url);
+        this.submitHandler.setUrl(this.options.url, this.options.rows.length > 0);
     },
     search: function(){
       this.options.url = this.$analyzeUrl.val().trim();
@@ -105,6 +104,7 @@ page notifies user as soon as results are present
     },
   });
   
+  //We don't use the usual rerendering for the Submithandler as it doesn't work with Recaptcha.
   var SubmitHandler = function(node,options){
     this.initialize(arguments);
 
@@ -116,7 +116,7 @@ page notifies user as soon as results are present
   };
   $.extend(SubmitHandler.prototype, TemplateMixin, {
     template: "#submittpl",
-    defaults:  {url:"http://example.com/"},
+    defaults:  {url:"http://example.com/", hasResults: false},
     initCaptcha: function(){
       //Lazy-load Recaptcha
       
@@ -133,8 +133,10 @@ page notifies user as soon as results are present
         window.lazyRecaptchaInit = true;
       }
     },
-    setUrl: function(url){
+    setUrl: function(url, hasResults){
       this.$urlInput.val(url.trim());
+      this.$title.text(hasResults ? "Reanalyze!" : "Analyze!");
+      this.options.hasResults = hasResults;
       if(/^(https?:\/\/)?[a-zA-Z0-9_\-\.]+\.[a-zA-Z0-9]+(:\d+)?(\/.*)?$/.test(url)) {
         this.$element.fadeIn("fast");
         this.initCaptcha();
@@ -147,17 +149,22 @@ page notifies user as soon as results are present
       }
     },
     submit: function(){
-      $.post("/api/analyze", this.$element.serialize(), "json").then((function(data){
-        if(!data.success) {
-          this.$captchaError.slideDown("fast");
-          Recaptcha.reload();
-        } else {
-          this.$parentNode.children().slideUp().promise().done(function(){
-            $(this).remove();
-          });
-          new QueueHandler(this.$parentNode, {}, data); //FIXME Debug
-        }
-      }).bind(this));
+      if(!window.Recaptcha) {
+        alert("Recaptcha has not been loaded yet.");
+      }
+      else {
+        $.post("/api/analyze", this.$element.serialize(), "json").then((function(data){
+          if(!data.success) {
+            this.$captchaError.slideDown("fast");
+            Recaptcha.reload();
+          } else {
+            this.$parentNode.children().slideUp().promise().done(function(){
+              $(this).remove();
+            });
+            new QueueHandler(this.$parentNode, {}, data); //FIXME Debug
+          }
+        }).bind(this));
+      }
       return false;
     }
   });
@@ -223,19 +230,23 @@ page notifies user as soon as results are present
     },
     handleStatus: function(data){
       if(data.complete || data.queue < 0) {
-        location.reload();
+        this.notify().done(function(){
+          location.reload();
+        });
       } else {
         this.setQueueNumber(data.queue);
       }
     },
     setQueueNumber: function(no){
+      //FIXME: Set window title
       this.$queuePosition.text(no);
     },
     notify: function(){
       if(!this.$notifyButton.hasClass("active"))
-        return;
+        return $.Deferred.resolve(true);
       notifySound.stop();
       notifySound.play();
+      console.error("FIXME: return promise that finishes when sound is played.");
     },
     notifyClick: function(){
       //TODO: Add support for HTML5 Notifications API as soon as Chrome supports the new spec
