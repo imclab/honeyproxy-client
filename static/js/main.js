@@ -238,15 +238,21 @@ page notifies user as soon as results are present
       }
     },
     setQueueNumber: function(no){
-      //FIXME: Set window title
+      window.document.title = "#"+no+" in queue - Honeyproxy Client";
       this.$queuePosition.text(no);
     },
     notify: function(){
+      var def = $.Deferred();
       if(!this.$notifyButton.hasClass("active"))
-        return $.Deferred.resolve(true);
-      notifySound.stop();
-      notifySound.play();
-      console.error("FIXME: return promise that finishes when sound is played.");
+        def.resolve(false);
+      else {
+        notifySound.stop();
+        notifySound.play();
+        notifySound.bindOnce("ended", function(e) {
+          def.resolve(true);
+        });
+      }
+      return def;
     },
     notifyClick: function(){
       //TODO: Add support for HTML5 Notifications API as soon as Chrome supports the new spec
