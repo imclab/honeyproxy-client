@@ -40,8 +40,8 @@ class Analysis(Base):
 
 Base.metadata.create_all(engine)
 
-if config["debug"]:
-    bottle.debug(True)
+bottle.debug(config["debug"])
+
 app = Bottle()
 template_env = Environment(loader=FileSystemLoader("./templates"))
 
