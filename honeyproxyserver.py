@@ -40,8 +40,8 @@ class Analysis(Base):
 
 Base.metadata.create_all(engine)
 
-
-bottle.debug(True)
+if config["debug"]:
+    bottle.debug(True)
 app = Bottle()
 template_env = Environment(loader=FileSystemLoader("./templates"))
 
@@ -149,7 +149,7 @@ class HoneyProxyInstanceManager():
             stderr = subprocess.STDOUT)
         out = p.stdout.readline()
         if out != "HoneyProxy has been started!\n":
-            raise RuntimeError("Couldn't start HoneyProxy: %s" % out)
+            raise RuntimeError("Couldn't start HoneyProxy: %s" % out+p.stdout.read())
         self.active[analysis.id] = { "handle": p, "apiport": apiport, "guiport": guiport }
         return self.active[analysis.id]
     def spawnResultInstance(self, analysis, apiport=None, guiport=None):
@@ -177,8 +177,9 @@ class HoneyProxyInstanceManager():
         p = subprocess.Popen(args,
             stdout = subprocess.PIPE,
             stderr = subprocess.STDOUT)
-        if p.stdout.readline() != "HoneyProxy has been started!\n":
-            raise RuntimeError("Couldn't start HoneyProxy")
+        out = p.stdout.readline()
+        if out != "HoneyProxy has been started!\n":
+            raise RuntimeError("Couldn't start HoneyProxy: %s" % out+p.stdout.read())
         else:
             print "Result instance spawned."
         self.active[analysis.id] = { "handle": p,
