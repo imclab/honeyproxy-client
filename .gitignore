@@ -33,3 +33,9 @@ nosetests.xml
 .mr.developer.cfg
 .project
 .pydevproject
+
+# Custom
+config.json
+config.server.json
+dump/
+honeyproxy.sqlite
