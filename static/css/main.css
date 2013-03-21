@@ -88,6 +88,8 @@ a:hover {
 #appframe_overlay {
   position: fixed; 
   right: 0;
+  top: 0;
+  height: 1px;
 }
 #info {
   background-color: hsla(0, 100%, 100%, 0.6);
