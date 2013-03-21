@@ -1,6 +1,6 @@
 from wsgiref.simple_server import make_server
 
-import bottle, json, threading, time, subprocess, collections, sys, os, datetime, IPy, re, time
+import bottle, json, threading, time, subprocess, collections, sys, os, datetime, IPy, re, time, io
 from bottle import Bottle, static_file, request, redirect
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.declarative import declarative_base
@@ -12,6 +12,9 @@ from subprocess import PIPE, STDOUT
 
 with open("config.json","r") as f:
     config = json.loads(f.read())
+
+if not os.path.isdir(config["logdir"]):
+    os.makedirs(config["logdir"])
 
 engine = create_engine('sqlite:///honeyproxy.sqlite', echo=False)
 Session = sessionmaker(bind=engine)
@@ -112,7 +115,7 @@ def analyze():
         analysis = Analysis(url=url)
         session.add(analysis)
         session.commit()
-        return {"success": True, "queue": analysis.getQueuePosition(), "id": analysis.id} #return some id, too.
+        return {"success": True, "queue": analysis.getQueuePosition(), "id": analysis.id}
 
 # Notice: The code below is a proof of concept.
 # It is incredibly hacky and badly designed. Spawning N instances of HoneyProxy is downright silly.
@@ -134,22 +137,22 @@ class HoneyProxyInstanceManager():
         guiport = self.ports.pop()
 
         print "Spawn listener instance(%d, %d)..." % (apiport, guiport)
-        
-        p = subprocess.Popen(config["HoneyProxy"] + [
-            "-w",os.path.join(config["dumpdir"],analysis.id),
-            "-p","8100",
-            "-T",
-            "-Z","5m",
-            "--api-auth", "NO_AUTH",
-            "--apiport", str(apiport),
-            "--guiport", str(guiport),
-            "--no-gui",
-            "--readonly"],
-            stdout = subprocess.PIPE,
-            stderr = subprocess.STDOUT)
-        out = p.stdout.readline()
-        if out != "HoneyProxy has been started!\n":
-            raise RuntimeError("Couldn't start HoneyProxy: %s" % out+p.stdout.read())
+
+        with LogProxy(analysis) as log:
+            p = subprocess.Popen(config["HoneyProxy"] + [
+                "-w",os.path.join(config["dumpdir"],analysis.id),
+                "-p","8100",
+                "-T",
+                "-Z","5m",
+                "--api-auth", "NO_AUTH",
+                "--apiport", str(apiport),
+                "--guiport", str(guiport),
+                "--no-gui",
+                "--readonly"],
+                **log)
+            out = log.combined.readline()
+            if out != "HoneyProxy has been started!\n":
+                raise RuntimeError("Couldn't start HoneyProxy: %s" % out)
         self.active[analysis.id] = { "handle": p, "apiport": apiport, "guiport": guiport }
         return self.active[analysis.id]
     def spawnResultInstance(self, analysis, apiport=None, guiport=None):
