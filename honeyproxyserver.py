@@ -1,6 +1,6 @@
 from wsgiref.simple_server import make_server
 
-import bottle, json, threading, time, subprocess, collections, sys, os, datetime, IPy, re, time, io
+import bottle, json, threading, time, subprocess, collections, sys, os, datetime, IPy, re, time
 from bottle import Bottle, static_file, request, redirect
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.declarative import declarative_base
@@ -50,7 +50,7 @@ template_env = Environment(loader=FileSystemLoader("./templates"))
 
 
 @app.route('/static/<filepath:path>')
-def server_static(filepath):
+def serve_static(filepath):
     return static_file(filepath, root='./static')
 
 
@@ -59,27 +59,29 @@ def favicon():
     return static_file('/favicon.ico', root='./static')
 
 @app.route('/')
-def thugme():
+def main():
     analyses = session.query(Analysis).filter(Analysis.status != "QUEUE").order_by(Analysis.submit_time.desc()).slice(0,20).all()
     analyses = json.dumps(list(a.as_primitive_dict() for a in analyses))
     template = template_env.get_template('index.html')
     return template.render(analyses=analyses)
 
 @app.route('/analysis/<analysis_id:re:[a-z0-9]+>')
-def show_analysis(analysis_id=None):
+def analysis(analysis_id=None):
     analysis = session.query(Analysis).get(analysis_id)
     if not analysis:
         abort(404, "No such analysis.")
     if analysis.status == "QUEUE":
         template = template_env.get_template('queue.html')
-        return template.render(data=json.dumps(analysis_api(analysis_id)))
+        return template.render(data=json.dumps(api_analysis(analysis_id)))
     else:
         instance = instanceManager.getInstance(analysis)
         template = template_env.get_template('appframe.html')
-        return template.render(url="http://"+request.urlparts.netloc.split(":")[0]+":"+str(instance["guiport"])+"/app/")        
+        return template.render(
+            url="http://"+request.urlparts.netloc.split(":")[0]+":"+str(instance.guiport)+"/app/",
+            analysis_url=analysis.url)        
 
 @app.post('/api/search')
-def search():
+def api_search():
     url = request.forms.get('url')
     if url:
         matches = session.query(Analysis).filter(
@@ -89,7 +91,7 @@ def search():
         return{"error":"no url specified"}
 
 @app.route('/api/analysis/<analysis_id:re:[a-z0-9]+>')
-def analysis_api(analysis_id):
+def api_analysis(analysis_id):
     analysis = session.query(Analysis).get(analysis_id)
     if not analysis:
         return {"error":"not found"}
@@ -99,7 +101,7 @@ def analysis_api(analysis_id):
         return {"id": analysis_id, "complete":False, "queue": analysis.getQueuePosition()}
 
 @app.post('/api/analyze')
-def analyze():
+def api_analyze():
     response = captcha.submit(
         request.forms.get(r'recaptcha_challenge_field'),
         request.forms.get('recaptcha_response_field'),
@@ -112,6 +114,8 @@ def analyze():
         url = request.forms.get("url")
         if not re.match("^(https?://)?[a-zA-Z0-9_\\-\\.]+\\.[a-zA-Z0-9]+(:\d+)?(/.*)?$",url):
             return {"success": False, "msg": "invalid url"}
+        if not url.startswith("http"):
+            url = "http://"+url
         analysis = Analysis(url=url)
         session.add(analysis)
         session.commit()
@@ -124,38 +128,26 @@ def analyze():
 # Anything I implemented here will get obsolete with these changes,
 # so this code just serves us as a bad PoC. Not as a base to build on.
 
-class HoneyProxyInstanceManager():
+class InstanceInfo(object):
+    def __init__(self, instance_type, handle, apiport, guiport):
+        self.instance_type = instance_type
+        self.handle = handle
+        self.apiport = apiport
+        self.guiport = guiport
+        self.starttime = time.time()
+    def __repr__(self):
+        return "Instance<%s,%d,%d,%d>" % (self.instance_type, self.apiport, self.guiport, self.starttime)
+        
+
+class HoneyProxyInstanceManager(object):
     def __init__(self):
         self.active = {}
         self.ports = set((8200+i for i in range(0,800)))
     def getInstance(self, analysis):
         if analysis.id in self.active:
             return self.active[analysis.id]
-        return self.spawnResultInstance(analysis)
-    def spawnListener(self, analysis):
-        apiport = self.ports.pop()
-        guiport = self.ports.pop()
-
-        print "Spawn listener instance(%d, %d)..." % (apiport, guiport)
-
-        with LogProxy(analysis) as log:
-            p = subprocess.Popen(config["HoneyProxy"] + [
-                "-w",os.path.join(config["dumpdir"],analysis.id),
-                "-p","8100",
-                "-T",
-                "-Z","5m",
-                "--api-auth", "NO_AUTH",
-                "--apiport", str(apiport),
-                "--guiport", str(guiport),
-                "--no-gui",
-                "--readonly"],
-                **log)
-            out = log.combined.readline()
-            if out != "HoneyProxy has been started!\n":
-                raise RuntimeError("Couldn't start HoneyProxy: %s" % out)
-        self.active[analysis.id] = { "handle": p, "apiport": apiport, "guiport": guiport }
-        return self.active[analysis.id]
-    def spawnResultInstance(self, analysis, apiport=None, guiport=None):
+        return self.spawnInstance(analysis,"result")
+    def _getPorts(self, apiport=None, guiport=None):
         if apiport:
             self.ports.remove(apiport)
         else:
@@ -165,37 +157,56 @@ class HoneyProxyInstanceManager():
             self.ports.remove(guiport)
         else:
             guiport = self.ports.pop()
+        return apiport, guiport
+    
+    def spawnInstance(self, analysis, instance_type, apiport=None, guiport=None):
+        apiport, guiport = self._getPorts()
+        print "Spawn %s instance(%d, %d)..." % (instance_type, apiport, guiport)
 
-        print "Spawn result instance(%d, %d)..." % (apiport, guiport)
-
-        args = config["HoneyProxy"] + [
-            "-r", os.path.join(config["dumpdir"],analysis.id),
-            "-n",
-            "--api-auth", "NO_AUTH",
-            "--apiport", str(apiport),
-            "--guiport", str(guiport),
-            "--no-gui",
-            "--readonly"]
-        print args
+        args = (config["HoneyProxy"] +
+                [
+                    "--api-auth", "NO_AUTH",
+                    "--apiport", str(apiport),
+                    "--guiport", str(guiport),
+                    "--no-gui",
+                    "--readonly"
+                ])
+        if instance_type == "listener":
+            args.extend(
+                [
+                    "-w",os.path.join(config["dumpdir"],analysis.id),
+                    "-p","8100",
+                    #"-T",
+                    "-Z","5m"])
+        else:
+            args.extend(
+                [
+                    "-r", os.path.join(config["dumpdir"],analysis.id),
+                    "-n",
+                    "--readonly"])
         p = subprocess.Popen(args,
-            stdout = subprocess.PIPE,
-            stderr = subprocess.STDOUT)
+                             stdout=PIPE,
+                             stderr=STDOUT)
         out = p.stdout.readline()
         if out != "HoneyProxy has been started!\n":
             raise RuntimeError("Couldn't start HoneyProxy: %s" % out+p.stdout.read())
-        else:
-            print "Result instance spawned."
-        self.active[analysis.id] = { "handle": p,
-                                                "starttime": time.time(),
-                                                "apiport": apiport,
-                                                "guiport": guiport }        
+        self.active[analysis.id] = InstanceInfo(instance_type, p, apiport, guiport)
         return self.active[analysis.id]
+    
     def terminateProcess(self, analysis):
-        self.active[analysis.id]["handle"].terminate()
-        for port in ("apiport","guiport"):
-            if port in self.active[analysis.id]:
-                self.ports.add(self.active[analysis.id][port])
-        del self.active[analysis.id]
+        data = self.active[analysis.id]
+        logfile = os.path.join(config["logdir"], analysis.id + ".log")
+        with open(logfile, "a") as f:
+            f.write("\n\n"+str(data)+"\n\n")
+            data.handle.stdout.seek(0)
+            f.write(data.handle.stdout.read())
+        data.handle.read()
+        data.handle.terminate()
+        
+        self.ports.add(data.apiport)
+        self.ports.add(data.guiport)
+        
+        del data
         
 
 class RequestHandler(threading.Thread):
@@ -210,7 +221,7 @@ class RequestHandler(threading.Thread):
                 time.sleep(1)
             else:
                 #Launch HoneyProxy
-                instanceManager.spawnListener(analysis)
+                instanceManager.spawnInstance(analysis,"listener")
 
                 analysis.status = "ACTIVE"
                 self.session.commit()
@@ -218,7 +229,7 @@ class RequestHandler(threading.Thread):
                 # Reset VM and start it
                 subprocess.call([config["VBoxManage"], "controlvm", config["VMName"], "poweroff"])
                 subprocess.call([config["VBoxManage"], "snapshot", config["VMName"], "restorecurrent"])
-                subprocess.check_call([config["VBoxManage"], "startvm", config["VMName"],"--type","gui" if config["debug"] else "headless"])
+                subprocess.check_call([config["VBoxManage"], "startvm", config["VMName"],"--type","headless"])
                 
                 #Launch URL
                 params = ([config["VBoxManage"],
@@ -235,9 +246,9 @@ class RequestHandler(threading.Thread):
                 #Finish HoneyProxy
                 # dirty workaround: terminate the instance to free up the proxy server.
                 # restart a resultinstance on the same ports afterwards
-                instOpts = instanceManager.getInstance(analysis)
+                instanceInfo = instanceManager.getInstance(analysis)
                 instanceManager.terminateProcess(analysis)
-                instanceManager.spawnResultInstance(analysis, instOpts["apiport"], instOpts["guiport"])
+                instanceManager.spawnInstance(analysis, "result", instanceInfo.apiport, instanceInfo.guiport)
                 
                 analysis.status = "FINISHED"
                 self.session.commit()
