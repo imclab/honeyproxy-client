@@ -77,13 +77,29 @@ a:hover {
   height: 100%;
 }
 
-#shareoverlay {
-  position: fixed; 
-  right: 0;
+#share {
+  float: right;
   padding: 5px;
   height: 54px;
   background-color: hsla(0, 100%, 100%, 0.6);
   border-left: solid hsla(0, 0%, 0%, 0.19) 1px;
+}
+
+#appframe_overlay {
+  position: fixed; 
+  right: 0;
+}
+#info {
+  background-color: hsla(0, 100%, 100%, 0.6);
+  border-left: solid hsla(0, 0%, 0%, 0.19) 1px;
+  border-bottom: solid hsla(0, 0%, 0%, 0.19) 1px;
+  margin-right: -1px;
+  padding: 0 5px;
+  float: right;
+  max-width: 500px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 body, html {

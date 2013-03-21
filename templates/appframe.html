@@ -2,8 +2,12 @@
 
 {% block content %}
 <!-- TODO: Add Share stuff as overlay -->
-<div id="shareoverlay"></div>
-<iframe class="appframe" frameBorder="0" seamless src="{{ url }}"></iframe>
+<div id="appframe_overlay">
+  <div id="share"></div>
+  <div id="info"><a href="/"> <i class="muted icon-angle-left"></i> back to the main page</a> 
+  &nbsp;&nbsp;&nbsp;<i class="icon-globe"></i> analysis for <span title="{{ analysis_url }}">{{ analysis_url }}</span> &nbsp;&nbsp;&nbsp; </div>
+</div>
+<iframe class="appframe" frameBorder="0" seamless src="{{ url }}" onload="src+='#'+document.location.origin"></iframe>
 {% endblock %}
 
 {% block instruction %}
@@ -11,7 +15,7 @@
 {% include 'tpl/share.html' %}
 
 <script type="text/javascript">
-    new ShareWidget("#shareoverlay",{
+    new ShareWidget("#share",{
       text: "Share analysis:",
 	  url: location.href
      });
