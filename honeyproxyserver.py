@@ -219,7 +219,6 @@ class HoneyProxyInstanceManager(object):
         data.handle.terminate()
         with open(logfile, "a") as f:
             f.write("\n\n"+str(data)+"\n\n")
-            data.handle.stdout.seek(0)
             f.write(data.handle.stdout.read())        
         
         self.ports.add(data.apiport)
