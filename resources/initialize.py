@@ -16,5 +16,5 @@ system("sudo iptables -t nat -A PREROUTING -i vboxnet0 -p tcp -j REDIRECT --to-p
 
 print "Start HoneyProxy Client...."
 system("nohup python honeyproxyserver.py > server.log 2> server.err < /dev/null &")
-
+system("sudo iptables -t nat -A PREROUTING -p tcp -i eth0 --dport 80 -j REDIRECT --to-port 8000")
 print "done!"

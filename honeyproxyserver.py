@@ -179,7 +179,7 @@ class HoneyProxyInstanceManager(object):
         return apiport, guiport
     
     def spawnInstance(self, analysis, instance_type, apiport=None, guiport=None):
-        apiport, guiport = self._getPorts()
+        apiport, guiport = self._getPorts(apiport, guiport)
         print "Spawn %s instance(%d, %d)..." % (instance_type, apiport, guiport)
 
         args = (config["HoneyProxy"] +
@@ -277,6 +277,6 @@ request_queue = collections.deque(maxlen=50)
 requesthandler = RequestHandler().start()
 
 if __name__ == "__main__":
-    httpd = make_server('', 8000, app)
+    httpd = make_server('', config["port"], app)
     print "Serving on port 8000..."
     httpd.serve_forever()

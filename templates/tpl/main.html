@@ -38,9 +38,9 @@
     <td title="<%- decodeURI(url) %>"><%- decodeURI(url) %></td>
     <td>
       <% 
-        var url = '<a href="/analysis/'+ id + '">';
+        var link = '<a href="/analysis/'+ id + '">';
         if(status === "ACTIVE") {
-          print(url +'<i class="icon-spinner"></i> <i>running...</i></a>');
+          print(link +'<i class="icon-spinner"></i> <i>running...</i></a>');
         } else if(status === "FINISHED") {
           if(analysis_size == 0){
             print('<i class="icon-minus-sign"></i> no data received')
@@ -54,10 +54,10 @@
             var niceSize = _niceSize.bind(undefined,["bytes","KB","MB","GB","TB"]);
             
             
-            print(url + '<i class="icon-ok-sign"></i> complete ('+niceSize(analysis_size)+')</a>')
+            print(link + '<i class="icon-ok-sign"></i> complete ('+niceSize(analysis_size)+')</a>')
           }
         } else if(status === "QUEUE") {
-          print(url +'<i class="icon-time"></i> queued</a>');
+          print(link +'<i class="icon-time"></i> queued</a>');
         }
         %>
       </a>
