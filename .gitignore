@@ -39,3 +39,4 @@ config.json
 config.server.json
 dump/
 honeyproxy.sqlite
+log/

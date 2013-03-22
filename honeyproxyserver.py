@@ -35,7 +35,7 @@ class Analysis(Base):
         if self.status == "QUEUE" or not os.path.isfile(self.getDumpfileLocation()):
             return 0
         else:
-            return 3040#os.path.getsize(self.getDumpfileLocation())
+            return os.path.getsize(self.getDumpfileLocation())
     @property
     def queue_position(self):
         if self.status != "QUEUE":
@@ -106,7 +106,7 @@ def api_search():
     url = request.forms.get('url')
     if url:
         matches = session.query(Analysis).filter(
-            Analysis.url.like("%"+request.forms.get('url')+"%")).all()
+            Analysis.url.like("%"+request.forms.get('url')+"%")).slice(0,50).all()
         return {"results": list(a.as_htmlsafe_dict() for a in matches)}
     else:
         return{"error":"no url specified"}

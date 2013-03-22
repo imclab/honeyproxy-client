@@ -23,8 +23,18 @@ page notifies user as soon as results are present
   }); 
   
   function replaceState(url){
-    history.pushState({}, "", url);
+    
+    history.pushState({"reload":true}, "", url);
   }
+  
+  window.onpopstate = function(){
+    if(history.state && history.state.reload){
+      window.onpopstate = function(){
+        location.reload();
+      };
+    }
+      
+  };
 
   var TemplateMixin = {
     initialize: function(args){
