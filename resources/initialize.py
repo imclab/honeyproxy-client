@@ -2,7 +2,7 @@ from os import system, chdir
 chdir("..")
 
 print "Creating Host-Only interface..."
-system("vboxmanage hostonlyif create")
+#system("vboxmanage hostonlyif create")
 system("vboxmanage hostonlyif ipconfig vboxnet0 --ip 192.168.56.1")
 
 print "Forwarding traffic to Host-Only interface..."
