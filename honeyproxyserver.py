@@ -195,7 +195,8 @@ class HoneyProxyInstanceManager(object):
                 [
                     "-w", analysis.getDumpfileLocation(),
                     "-p","8100",
-                    #"-T",
+                    "-T",
+                    "-s","./resources/suppresswinupdate.py"
                     "-Z","5m"])
         else:
             args.extend(
