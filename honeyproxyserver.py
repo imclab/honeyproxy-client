@@ -1,11 +1,12 @@
 from wsgiref.simple_server import make_server
 
-import bottle, json, threading, time, subprocess, collections, sys, os, datetime, IPy, re, time
+import bottle, json, threading, time, subprocess, collections, sys, os, datetime, IPy, re, time, urllib
 from bottle import Bottle, static_file, request, redirect
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine, Column, DateTime, String, Boolean, Integer, Enum
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.session import object_session
 from sqlalchemy.pool import QueuePool
 from recaptcha.client import captcha
 from subprocess import PIPE, STDOUT
@@ -28,18 +29,38 @@ class Analysis(Base):
     request_count = Column(Integer)
     submit_time = Column(DateTime, default=datetime.datetime.now)
     status = Column(Enum("QUEUE","ACTIVE","FINISHED"), default="QUEUE")
+
+    @property
+    def analysis_size(self):
+        if self.status == "QUEUE" or not os.path.isfile(self.getDumpfileLocation()):
+            return 0
+        else:
+            return 3040#os.path.getsize(self.getDumpfileLocation())
+    @property
+    def queue_position(self):
+        if self.status != "QUEUE":
+            return -1
+        return 1 + object_session(self).query(Analysis).filter_by(status="QUEUE").filter(Analysis.submit_time < self.submit_time).count()
+    
+    def getDumpfileLocation(self):
+        return os.path.join(config["dumpdir"],self.id) 
     def __repr__(self):
         return "<Analysis('%s','%s','%s')>" % (self.id,self.url,str(self.status))
     def as_dict(self):
-        return {c.name: getattr(self, c.name) for c in self.__table__.columns}
-    def as_primitive_dict(self):
+        ret = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        ret["analysis_size"]  = self.analysis_size
+        ret["queue_position"] = self.queue_position
+        return ret
+    def as_htmlsafe_dict(self):
         ret = self.as_dict()
         ret["submit_time"] = ret["submit_time"].isoformat()
+        ret["url"] = urllib.quote(ret["url"],safe='~@#$&()*!+=:;,.?/\'')#.replace("<","&lt;").replace('"','&quot;')
         return ret
-    def getQueuePosition(self):
-        if self.status != "QUEUE":
-            return -1
-        return 1+session.query(Analysis).filter_by(status="QUEUE").filter(Analysis.submit_time < self.submit_time).count()
+
+    __mapper_args__ = {
+        'order_by' :[submit_time.desc()]
+    }
+   
 
 Base.metadata.create_all(engine)
 
@@ -60,8 +81,8 @@ def favicon():
 
 @app.route('/')
 def main():
-    analyses = session.query(Analysis).filter(Analysis.status != "QUEUE").order_by(Analysis.submit_time.desc()).slice(0,20).all()
-    analyses = json.dumps(list(a.as_primitive_dict() for a in analyses))
+    analyses = session.query(Analysis).filter(Analysis.status != "QUEUE").slice(0,20).all()
+    analyses = json.dumps(list(a.as_htmlsafe_dict() for a in analyses))
     template = template_env.get_template('index.html')
     return template.render(analyses=analyses)
 
@@ -86,7 +107,7 @@ def api_search():
     if url:
         matches = session.query(Analysis).filter(
             Analysis.url.like("%"+request.forms.get('url')+"%")).all()
-        return {"results": list(a.as_primitive_dict() for a in matches)}
+        return {"results": list(a.as_htmlsafe_dict() for a in matches)}
     else:
         return{"error":"no url specified"}
 
@@ -95,10 +116,8 @@ def api_analysis(analysis_id):
     analysis = session.query(Analysis).get(analysis_id)
     if not analysis:
         return {"error":"not found"}
-    if analysis.status == "FINISHED":
-        return {"id": analysis_id, "complete":True}
     else:
-        return {"id": analysis_id, "complete":False, "queue": analysis.getQueuePosition()}
+        return analysis.as_htmlsafe_dict()
 
 @app.post('/api/analyze')
 def api_analyze():
@@ -114,12 +133,12 @@ def api_analyze():
         url = request.forms.get("url")
         if not re.match("^(https?://)?[a-zA-Z0-9_\\-\\.]+\\.[a-zA-Z0-9]+(:\d+)?(/.*)?$",url):
             return {"success": False, "msg": "invalid url"}
-        if not url.startswith("http"):
+        if not url.lower().startswith("http"):
             url = "http://"+url
         analysis = Analysis(url=url)
         session.add(analysis)
         session.commit()
-        return {"success": True, "queue": analysis.getQueuePosition(), "id": analysis.id}
+        return analysis.as_htmlsafe_dict()
 
 # Notice: The code below is a proof of concept.
 # It is incredibly hacky and badly designed. Spawning N instances of HoneyProxy is downright silly.
@@ -174,14 +193,14 @@ class HoneyProxyInstanceManager(object):
         if instance_type == "listener":
             args.extend(
                 [
-                    "-w",os.path.join(config["dumpdir"],analysis.id),
+                    "-w", analysis.getDumpfileLocation(),
                     "-p","8100",
                     #"-T",
                     "-Z","5m"])
         else:
             args.extend(
                 [
-                    "-r", os.path.join(config["dumpdir"],analysis.id),
+                    "-r", analysis.getDumpfileLocation(),
                     "-n",
                     "--readonly"])
         p = subprocess.Popen(args,
@@ -196,12 +215,11 @@ class HoneyProxyInstanceManager(object):
     def terminateProcess(self, analysis):
         data = self.active[analysis.id]
         logfile = os.path.join(config["logdir"], analysis.id + ".log")
+        data.handle.terminate()
         with open(logfile, "a") as f:
             f.write("\n\n"+str(data)+"\n\n")
             data.handle.stdout.seek(0)
-            f.write(data.handle.stdout.read())
-        data.handle.read()
-        data.handle.terminate()
+            f.write(data.handle.stdout.read())        
         
         self.ports.add(data.apiport)
         self.ports.add(data.guiport)

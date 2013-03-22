@@ -5,7 +5,7 @@
 <div id="appframe_overlay">
   <div id="share"></div>
   <div id="info"><a href="/"> <i class="muted icon-angle-left"></i> back to the main page</a> 
-  &nbsp;&nbsp;&nbsp;<i class="icon-globe"></i> analysis for <span title="{{ analysis_url }}">{{ analysis_url }}</span> &nbsp;&nbsp;&nbsp; </div>
+  &nbsp;&nbsp;&nbsp;<i class="icon-globe"></i> analysis for <span title="{{ analysis_url|e }}">{{ analysis_url|e }}</span> &nbsp;&nbsp;&nbsp; </div>
 </div>
 <iframe class="appframe" frameBorder="0" seamless src="{{ url }}" onload="src+='#'+document.location.origin"></iframe>
 {% endblock %}

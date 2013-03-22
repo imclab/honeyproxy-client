@@ -35,13 +35,30 @@
 </script>
 <script id="maintpl-row" type="text/template">
   <tr>
-    <td title="<%-url %>"><%- url %></td>
+    <td title="<%- decodeURI(url) %>"><%- decodeURI(url) %></td>
     <td>
-      <a href="/analysis/<%- id %>">
-        <% 
-          if(status === "ACTIVE") print('<i>running...</i>');
-          if(status === "FINISHED") print("analysis complete"/*parseInt(request_count) + " requests"*/);
-          if(status === "QUEUE") print('queued');
+      <% 
+        var url = '<a href="/analysis/'+ id + '">';
+        if(status === "ACTIVE") {
+          print(url +'<i class="icon-spinner"></i> <i>running...</i></a>');
+        } else if(status === "FINISHED") {
+          if(analysis_size == 0){
+            print('<i class="icon-minus-sign"></i> no data received')
+          } else {
+            
+            var _niceSize = (function(units, i){
+              if(i>1024 && units.length > 1)
+                return _niceSize(units.slice(1),i/1024.0);
+              return (Math.round(i*100)/100)+units[0];
+            });
+            var niceSize = _niceSize.bind(undefined,["bytes","KB","MB","GB","TB"]);
+            
+            
+            print(url + '<i class="icon-ok-sign"></i> complete ('+niceSize(analysis_size)+')</a>')
+          }
+        } else if(status === "QUEUE") {
+          print(url +'<i class="icon-time"></i> queued</a>');
+        }
         %>
       </a>
     </td>

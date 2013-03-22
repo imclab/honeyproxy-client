@@ -157,14 +157,14 @@ page notifies user as soon as results are present
       }
       else {
         $.post("/api/analyze", this.$element.serialize(), "json").then((function(data){
-          if(!data.success) {
+          if(!data.id) {
             this.$captchaError.slideDown("fast");
             Recaptcha.reload();
           } else {
             this.$parentNode.children().slideUp().promise().done(function(){
               $(this).remove();
             });
-            new QueueHandler(this.$parentNode, {}, data);
+            new QueueHandler(this.$parentNode, {showSuccessMessage: true}, data);
           }
         }).bind(this));
       }
@@ -232,13 +232,13 @@ page notifies user as soon as results are present
       $.get("/api/analysis/"+this.id, this.handleStatus.bind(this),"json");
     },
     handleStatus: function(data){
-      if(data.complete || data.queue < 0) {
+      if(data.status !== "QUEUE") {
         window.clearInterval(this.pollStatusInterval);
         this.notify().done(function(){
           location.reload();
         });
       } else {
-        this.setQueueNumber(data.queue);
+        this.setQueueNumber(data.queue_position);
       }
     },
     setQueueNumber: function(no){
