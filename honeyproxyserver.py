@@ -1,5 +1,8 @@
+from wsgiref.simple_server import make_server
+
 import bottle, json, threading, time, subprocess, collections, sys, os, datetime, IPy, re, time, urllib
-from bottle import Bottle, static_file, request, redirect, CherryPyServer, run
+from bottle import Bottle, static_file, request, redirect, PasteServer as wsgiserver, response
+from bottle.ext import sqlalchemy as bottlealchemy
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine, Column, DateTime, String, Boolean, Integer, Enum
@@ -17,7 +20,7 @@ if not os.path.isdir(config["logdir"]):
 
 engine = create_engine('sqlite:///honeyproxy.sqlite', echo=False)
 Session = sessionmaker(bind=engine)
-session = Session()
+#session = Session()
 Base = declarative_base()
 
 class Analysis(Base):
@@ -52,7 +55,7 @@ class Analysis(Base):
     def as_htmlsafe_dict(self):
         ret = self.as_dict()
         ret["submit_time"] = ret["submit_time"].isoformat()
-        ret["url"] = urllib.quote(ret["url"],safe='~@#$&()*!+=:;,.?/\'')#.replace("<","&lt;").replace('"','&quot;')
+        ret["url"] = urllib.quote(ret["url"],safe='~@#$&()*!+=:;,.?/\'')
         return ret
 
     __mapper_args__ = {
@@ -65,12 +68,16 @@ Base.metadata.create_all(engine)
 bottle.debug(config["debug"])
 
 app = Bottle()
+app.install(bottlealchemy.Plugin(engine,keyword='session'))
+
 template_env = Environment(loader=FileSystemLoader("./templates"))
 
 
 @app.route('/static/<filepath:path>')
 def serve_static(filepath):
-    return static_file(filepath, root='./static')
+    resp = static_file(filepath, root='./static')
+    resp.set_header('Cache-Control','public, max-age=3600')
+    return resp
 
 
 @app.route('/favicon.ico')
@@ -78,14 +85,14 @@ def favicon():
     return static_file('/favicon.ico', root='./static')
 
 @app.route('/')
-def main():
+def main(session):
     analyses = session.query(Analysis).filter(Analysis.status != "QUEUE").slice(0,20).all()
     analyses = json.dumps(list(a.as_htmlsafe_dict() for a in analyses))
     template = template_env.get_template('index.html')
     return template.render(analyses=analyses)
 
 @app.route('/analysis/<analysis_id:re:[a-z0-9]+>')
-def analysis(analysis_id=None):
+def analysis(analysis_id,session):
     analysis = session.query(Analysis).get(analysis_id)
     if not analysis:
         abort(404, "No such analysis.")
@@ -100,7 +107,7 @@ def analysis(analysis_id=None):
             analysis_url=analysis.url)        
 
 @app.post('/api/search')
-def api_search():
+def api_search(session):
     url = request.forms.get('url')
     if url:
         matches = session.query(Analysis).filter(
@@ -110,7 +117,7 @@ def api_search():
         return{"error":"no url specified"}
 
 @app.route('/api/analysis/<analysis_id:re:[a-z0-9]+>')
-def api_analysis(analysis_id):
+def api_analysis(analysis_id,session):
     analysis = session.query(Analysis).get(analysis_id)
     if not analysis:
         return {"error":"not found"}
@@ -118,7 +125,7 @@ def api_analysis(analysis_id):
         return analysis.as_htmlsafe_dict()
 
 @app.post('/api/analyze')
-def api_analyze():
+def api_analyze(session):
     response = captcha.submit(
         request.forms.get(r'recaptcha_challenge_field'),
         request.forms.get('recaptcha_response_field'),
@@ -274,5 +281,4 @@ request_queue = collections.deque(maxlen=50)
 requesthandler = RequestHandler().start()
 
 if __name__ == "__main__":
-    print "Serving on port 8000..."
-    app.run(host='0.0.0.0', port=config["port"])
+    app.run(reloader=config["debug"],server=wsgiserver, port=config["port"],host="0.0.0.0")

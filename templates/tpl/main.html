@@ -51,7 +51,7 @@
                 return _niceSize(units.slice(1),i/1024.0);
               return (Math.round(i*100)/100)+units[0];
             });
-            var niceSize = _niceSize.bind(undefined,["bytes","KB","MB","GB","TB"]);
+            var niceSize = _niceSize.bind(undefined,["B","KB","MB","GB","TB"]);
             
             
             print(link + '<i class="icon-ok-sign"></i> complete ('+niceSize(analysis_size)+')</a>')
