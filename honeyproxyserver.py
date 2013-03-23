@@ -1,7 +1,5 @@
-from wsgiref.simple_server import make_server
-
 import bottle, json, threading, time, subprocess, collections, sys, os, datetime, IPy, re, time, urllib
-from bottle import Bottle, static_file, request, redirect
+from bottle import Bottle, static_file, request, redirect, CherryPyServer, run
 from jinja2 import Environment, FileSystemLoader
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine, Column, DateTime, String, Boolean, Integer, Enum
@@ -245,13 +243,12 @@ class RequestHandler(threading.Thread):
                 self.session.commit()
                 
                 # Reset VM and start it
-                subprocess.call([config["VBoxManage"], "controlvm", config["VMName"], "poweroff"])
-                subprocess.call([config["VBoxManage"], "snapshot", config["VMName"], "restorecurrent"])
-                subprocess.check_call([config["VBoxManage"], "startvm", config["VMName"],"--type","headless"])
+                subprocess.call(config["VBoxManage"] + ["controlvm", config["VMName"], "poweroff"])
+                subprocess.call(config["VBoxManage"] + ["snapshot", config["VMName"], "restorecurrent"])
+                subprocess.check_call(config["VBoxManage"] + ["startvm", config["VMName"],"--type","headless"])
                 
                 #Launch URL
-                params = ([config["VBoxManage"],
-                                 "guestcontrol", config["VMName"], "exec"]
+                params = (config["VBoxManage"] + ["guestcontrol", config["VMName"], "exec"]
                                 + config["VMStart"] + [analysis.url])
                 subprocess.call(params)
 
@@ -259,7 +256,7 @@ class RequestHandler(threading.Thread):
                 time.sleep(config["analysis_duration"])
 
                 #Shut down VM
-                subprocess.call([config["VBoxManage"], "controlvm", config["VMName"], "poweroff"])
+                subprocess.call(config["VBoxManage"] + ["controlvm", config["VMName"], "poweroff"])
 
                 #Finish HoneyProxy
                 # dirty workaround: terminate the instance to free up the proxy server.
@@ -277,6 +274,5 @@ request_queue = collections.deque(maxlen=50)
 requesthandler = RequestHandler().start()
 
 if __name__ == "__main__":
-    httpd = make_server('', config["port"], app)
     print "Serving on port 8000..."
-    httpd.serve_forever()
+    app.run(host='0.0.0.0', port=config["port"])
