@@ -155,10 +155,11 @@ def api_analyze(session):
 class InstanceInfo(object):
     def __init__(self, instance_type, handle, apiport, guiport):
         self.instance_type = instance_type
-        self.handle = handle
-        self.apiport = apiport
-        self.guiport = guiport
-        self.starttime = time.time()
+        self.handle        = handle
+        self.apiport       = apiport
+        self.guiport       = guiport
+        self.starttime     = time.time()
+        self.last_access   = self.starttime
     def __repr__(self):
         return "Instance<%s,%d,%d,%d>" % (self.instance_type, self.apiport, self.guiport, self.starttime)
         
@@ -169,7 +170,9 @@ class HoneyProxyInstanceManager(object):
         self.ports = set((8200+i for i in range(0,800)))
     def getInstance(self, analysis):
         if analysis.id in self.active:
-            return self.active[analysis.id]
+            instanceInfo = self.active[analysis.id]
+            instanceInfo.last_access = time.time()
+            return instanceInfo
         return self.spawnInstance(analysis,"result")
     def _getPorts(self, apiport=None, guiport=None):
         if apiport:
@@ -229,7 +232,7 @@ class HoneyProxyInstanceManager(object):
         self.ports.add(data.apiport)
         self.ports.add(data.guiport)
         
-        del data
+        del self.active[analysis.id]
         
 
 class RequestHandler(threading.Thread):
@@ -239,6 +242,12 @@ class RequestHandler(threading.Thread):
         self.daemon = True
     def run(self):
         while True:
+            last_allowed_timestamp = time.time() - config["instance_lifetime"]
+            for analysis_id, instanceInfo in instanceManager.active.items():
+                if instanceInfo.last_access < last_allowed_timestamp and instanceInfo.instance_type == "result":
+                    print "Terminating result instance %s" % analysis_id
+                    analysis = self.session.query(Analysis).get(analysis_id)
+                    instanceManager.terminateProcess(analysis)
             analysis = self.session.query(Analysis).filter_by(status="QUEUE").order_by(Analysis.submit_time).first()
             if analysis == None:
                 time.sleep(1)
