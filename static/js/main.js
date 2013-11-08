@@ -48,7 +48,7 @@ page notifies user as soon as results are present
     postRender: function(){},
     render: function(){
       if(!this._template){
-        console.debug("Rendering template",this);
+        console.log("Rendering template",this);
         var templatesrc = this.template.indexOf("#") === 0 ? $(this.template).html() : this.template;
         Object.getPrototypeOf(this)._template = _.template($.trim(templatesrc));
       }
