@@ -259,7 +259,10 @@ class RequestHandler(threading.Thread):
                 self.session.commit()
                 
                 # Reset VM and start it
-                subprocess.call(config["VBoxManage"] + ["controlvm", config["VMName"], "poweroff"])
+                try:
+                    subprocess.call(config["VBoxManage"] + ["controlvm", config["VMName"], "poweroff"])
+                except:
+                    pass
                 subprocess.call(config["VBoxManage"] + ["snapshot", config["VMName"], "restorecurrent"])
                 subprocess.check_call(config["VBoxManage"] + ["startvm", config["VMName"],"--type","headless"])
                 
